@@ -13,12 +13,14 @@ A live chat widget with AI-powered customer support, built for the Spur founding
 ## Features
 
 - Real-time chat interface with AI responses
+- Multi-conversation support with sidebar history
 - Conversation persistence across sessions
 - Contextual AI replies using conversation history
 - "Agent is typing..." indicator
 - Error handling with friendly messages
 - Input validation (max 2000 characters)
 - Session-based conversation tracking
+- Mobile-responsive design with full-screen chat
 
 ## Architecture Overview
 
@@ -29,8 +31,10 @@ src/
 │   │   └── chat/
 │   │       ├── message/
 │   │       │   └── route.ts      # POST endpoint for sending messages
-│   │       └── history/
-│   │           └── route.ts      # GET endpoint for fetching history
+│   │       ├── history/
+│   │       │   └── route.ts      # GET endpoint for fetching history
+│   │       └── conversations/
+│   │           └── route.ts      # GET endpoint for listing conversations
 │   ├── page.tsx                  # Main landing page
 │   ├── layout.tsx                # Root layout
 │   └── globals.css               # Global styles
@@ -112,8 +116,11 @@ cp .env.example .env
 
 1. Create a free account at [supabase.com](https://supabase.com)
 2. Create a new project
-3. Go to Settings > Database > Connection String
-4. Copy the connection string and add it to `.env`
+3. Go to **Settings** > **Database** > **Connection String**
+4. You'll need two connection strings:
+   - **Connection pooling URL** (with `?pgbouncer=true`) - for app runtime
+   - **Direct connection URL** (port 5432) - for migrations
+5. Add both to your `.env` file
 
 ### 3. Configure Environment Variables
 
@@ -122,6 +129,11 @@ Edit `.env` and add:
 ```env
 # Database (use your connection string)
 DATABASE_URL="postgresql://user:password@localhost:5432/spurnow?schema=public"
+DIRECT_URL="postgresql://user:password@localhost:5432/spurnow?schema=public"
+
+# For Supabase, use both connection pooling and direct URLs:
+# DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
+# DIRECT_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres"
 
 # OpenAI API Key (required)
 # Get your key from: https://platform.openai.com/api-keys
@@ -130,6 +142,8 @@ OPENAI_API_KEY="sk-..."
 # Optional: Model selection (defaults to gpt-4o-mini)
 OPENAI_MODEL="gpt-4o-mini"
 ```
+
+**Note:** `DATABASE_URL` is used by the app at runtime. `DIRECT_URL` is required for running migrations (schema changes). When using Supabase connection pooling, you must provide both.
 
 ### 4. Run Database Migrations
 
@@ -182,6 +196,26 @@ The AI is configured with a system prompt containing:
 
 ## API Endpoints
 
+### GET /api/chat/conversations
+
+Fetch all conversations.
+
+**Response:**
+```json
+{
+  "conversations": [
+    {
+      "id": "conv-123",
+      "sessionId": "session-id",
+      "createdAt": "2025-12-30T10:00:00Z",
+      "updatedAt": "2025-12-30T11:00:00Z",
+      "messageCount": 4,
+      "firstMessage": "What's your return policy?"
+    }
+  ]
+}
+```
+
 ### POST /api/chat/message
 
 Send a message and get an AI response.
@@ -228,7 +262,8 @@ Fetch conversation history for a session.
 1. Push code to GitHub
 2. Import project in Vercel
 3. Add environment variables in Vercel dashboard:
-   - `DATABASE_URL` (Supabase connection string)
+   - `DATABASE_URL` (Supabase connection pooling URL)
+   - `DIRECT_URL` (Supabase direct connection URL)
    - `OPENAI_API_KEY`
 4. Deploy
 
@@ -237,7 +272,12 @@ Fetch conversation history for a session.
 Use Supabase for the database:
 
 ```env
-DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
+# Connection pooling URL (for app runtime)
+DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct connection URL (for migrations)
+DIRECT_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres"
+
 OPENAI_API_KEY="sk-..."
 ```
 
